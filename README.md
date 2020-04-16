@@ -5,3 +5,4 @@ Work in progress.
 This repository is my code backup. The full mod will be released as part of the VehFuncs mod
 https://www.mixmods.com.br/2018/01/VehFuncs.html
 
+Update for this: https://www.mixmods.com.br/2015/04/exhaust-tweaker-configurar-fumacas-dos.html
