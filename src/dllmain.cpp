@@ -4,6 +4,7 @@
 #include <plugin_sa/game_sa/CVehicle.h>
 #include <saving.hpp>
 #include <calling.hpp>
+#include <assembly.hpp>
 #include <ctime>
 #include "GSXAPI.h"
 
@@ -122,7 +123,7 @@ void poolThings()
     initCarsPool();
 }
 
-
+// Test function for set via CLEO script
 extern "C" __declspec(dllexport) void addEditPlayerCar(CVehicle *veh, float r, float g, float b, float a, float size, float unk, float lifetime)
 {
     poolThings();
@@ -179,6 +180,7 @@ bool getSetData(CVehicle* veh, CSmoke* smk, float r, float g, float b, float a, 
     }
     else
     {
+        // Random for testing purposes
         smk->color.r = r * ((rand() % 10) / 10.0);
         smk->color.g = g * ((rand() % 10) / 10.0);
         smk->color.b = b * ((rand() % 10) / 10.0);
@@ -192,14 +194,21 @@ bool getSetData(CVehicle* veh, CSmoke* smk, float r, float g, float b, float a, 
 }
 
 /*
-*  Patch
+*  Patches prototipes
 */
 typedef void(__thiscall* FxPrtMult_c__FxPrtMult_t) (CSmoke*, float, float, float, float, float, float, float);
 FxPrtMult_c__FxPrtMult_t FxPrtMult_c__FxPrtMult_o = (FxPrtMult_c__FxPrtMult_t)nullptr;
 
+typedef void(__thiscall* ExhaustAddParticles_t) (CVehicle*);
+ExhaustAddParticles_t ExhaustAddParticles_o = (ExhaustAddParticles_t)nullptr;
+
+typedef injector::function_hooker_thiscall<injector::scoped_callback, 0x006AB344, void(CVehicle*)> fhook_ExhaustParticles;
+
 CVehicle* regesi;
 CSmoke* thisptr;
 float r, g, b, a, size, unk, lifetime;
+
+float dummy[3];
 
 void doFxPrtMult_c()
 {
@@ -211,6 +220,9 @@ void doFxPrtMult_c()
     }
 }
 
+/*
+* Color RGBA, size, particle lifetime 
+*/
 extern "C" CSmoke * __fastcall FxPrtMult_c__FxPrtMult_c(CSmoke* tthisptr, int edx, float tr, float tg, float tb, float ta, float tsize, float tunk, float tlifetime)
 {
     __asm {
@@ -250,11 +262,58 @@ extern "C" CSmoke * __fastcall FxPrtMult_c__FxPrtMult_c(CSmoke* tthisptr, int ed
     return tthisptr;
 }
 
+
+/*
+* Position set and multi dummy foreach
+*/
+void __fastcall AddExhaustParticles(CVehicle *veh)
+{
+    regesi = veh;
+    dummy[0] = 1.0;
+    dummy[1] = -2.0;
+    dummy[2] = 0.0;
+
+    // testing
+    for (int i = 0; i < 4; i++)
+        ExhaustAddParticles_o(veh);
+        /*
+        {
+            for (int i = 0, size = getNumDummiesForVeh(veh); i < size; i++)
+            {
+                getExhaustDummyV3d(veh, i, dummy);
+                ExhaustAddParticles_o(veh);
+            }
+        }
+        */
+}
+
 void hook()
 {
     srand(time(0));
+
+    /*
+    * Hook CSmoke set
+    */
     if (FxPrtMult_c__FxPrtMult_o == nullptr)
         FxPrtMult_c__FxPrtMult_o = (FxPrtMult_c__FxPrtMult_t)(injector::MakeCALL(0x006DE629, injector::memory_pointer_raw(FxPrtMult_c__FxPrtMult_c)).get_raw<void*>());
+
+
+    /*
+    * Hooks for position set and multiple dummy support
+    */
+    injector::MakeNOP(0x006DE2EA, 0x006DE2F7 - 0x006DE2EA);
+
+    injector::MakeInline<0x006DE2EA>([](injector::reg_pack &regs)
+        {
+            regs.edx = (uint32_t)std::addressof(dummy);
+        }
+    );
+
+
+    if (ExhaustAddParticles_o == nullptr)
+        ExhaustAddParticles_o = (ExhaustAddParticles_t)(injector::MakeCALL(0x006AB344, injector::memory_pointer_raw(AddExhaustParticles)).get_raw<void*>());
+    
+    /////////////////////
 }
 
 BOOL APIENTRY DllMain( HMODULE hModule,
